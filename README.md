@@ -1,0 +1,1 @@
+Please don't put project files in this directory. You need to get the OpenAL library yourself.
