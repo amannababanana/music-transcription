@@ -2,56 +2,37 @@
 #include <fstream>
 #include <iostream>
 
-double resonate(std::vector<std::vector<short>> waveform, ALsizei sampleRate, float noteFreq, ALsizei startPos)
+
+std::vector<std::vector<double>> sinWaveDetect(DiscreteFunction waveform)
 {
-	// k is spring constant
-	double k = (2 * M_PI * noteFreq / sampleRate);
-	k *= k;
-	//make sure it doesn't go out of bounds
-	if (startPos > waveform[0].size() - 3 * sampleRate / noteFreq)
-	{
-		startPos = waveform[0].size() - 3 * sampleRate / noteFreq;
-	}
-	//fancy resonation stuff
-	std::vector<double> data;
-	double x = 0, x_deriv = 0, x_deriv2 = 0;
 	std::ofstream log;
-	log.open("log.csv", std::ios_base::trunc);
-	for (int i = 0; i < 3 * sampleRate / noteFreq; i++)
+	log.open("log2.csv", std::ios_base::trunc);
+	auto sinwave = [](double freq)->std::function<double(double)>{return [freq](double x)->double{return std::sin(2 * M_PI * freq * x); }; };
+	auto remove_sinwave = [](std::function<double(double)> f, double center)->std::function < double(double) >
 	{
-		x_deriv2 = (waveform[0][i+startPos]) - x*k;
-		x_deriv += x_deriv2;
-		x += x_deriv;
-		data.push_back(x);
-		log << x << ',';
-		log << waveform[0][i + startPos] << '\n';
-	}
-	//find 2nd peak
-	char countdown = 2;
-	double max = 0;
-	bool active = false;
-	int pos = 0;
-	for (int i = 3; i < data.size(); i++)
+		return [f, center](double x)->double
+		{
+			try{ return (f(center + x) + f(center - x))*.5; }
+			catch (...) { throw "exception here"; }
+		}; 
+	};
+	auto remove_coswave = [remove_sinwave](DiscreteFunction f, double dist, double step)->std::function<double(double)>
 	{
-		if (data[i]>max)
+		return [f, dist, step, remove_sinwave](double x)
 		{
-			active = true;
-			max = data[i];
-		}
-		else if (active)
-		{
-			pos = i - 1;
-			active = false;
-			countdown--;
-			std::cout << max<<'\n';
-		}
-		if (countdown == 0)
-		{
-			log << max << ',' << pos << '\n';
-			log.close();
-			return max / pos;
-		}
-	}
+			DiscreteFunction g = f;
+			for (int i = 0; i < dist / step; i++)
+			{
+				try{ g = (remove_sinwave(f, i*step + x), f); }
+				catch (...){}
+				//std::cout << '\t' << i << '/' << dist / step << '\n';
+			}
+			return g.integral(x, x + step);
+		};
+	};
+	DiscreteFunction data0 = waveform*sinwave(261);//fourier transform
+	std::vector<double> data = DiscreteFunction(remove_coswave(data0, .25/261, 1/data0.getSamplerate()*100), data0).getData();//work on this
+	for (int i = 0; i < data.size(); i++) log << data[i] << '\n';
 	log.close();
-	return -1;
+	return std::vector<std::vector<double>>();
 }

@@ -3,6 +3,7 @@
 #include "WAVloader.h"
 #include "playMusic.h"
 #include "noteDetect.h"
+#include "moreMath.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -17,11 +18,11 @@ int main(int argc, char* argv[])
 	ALsizei alBufferLen;
 	unsigned int alSource;
 	unsigned int alSampleSet;
-	std::vector<std::vector<short>> data;
-	data = loadWavFile("test2.wav", &alSampleSet, &alBufferLen, &alFreqBuffer, &alFormatBuffer);
-	std::cout<<resonate(data, alFreqBuffer, 261, 2000);
+	std::vector<double> data;
+	data = convert(loadWavFile("test2.wav", &alSampleSet, &alBufferLen, &alFreqBuffer, &alFormatBuffer)[0], data);
 	startMusic(alSampleSet);
-	_sleep(1000);
+	DiscreteFunction waveform=DiscreteFunction(data, alFreqBuffer);
+	sinWaveDetect(waveform);
 	stopMusic();
 	system("pause");
 }
